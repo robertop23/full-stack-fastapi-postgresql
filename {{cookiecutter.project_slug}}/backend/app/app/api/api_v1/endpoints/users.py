@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic.networks import EmailStr
 from sqlalchemy.orm import Session
+from sqlalchemy import exc
 
 from app import crud, models, schemas
 from app.api import deps
@@ -71,7 +72,12 @@ def update_user_me(
         user_in.full_name = full_name
     if email is not None:
         user_in.email = email
-    user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
+    try:
+        user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
+    except exc.IntegrityError:
+        raise HTTPException(
+            status_code=409, detail="User with this email already exists"
+        )
     return user
 
 
@@ -149,5 +155,10 @@ def update_user(
             status_code=404,
             detail="The user with this username does not exist in the system",
         )
-    user = crud.user.update(db, db_obj=user, obj_in=user_in)
+    try:
+        user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
+    except exc.IntegrityError:
+        raise HTTPException(
+            status_code=409, detail="User with this email already exists"
+        )
     return user
